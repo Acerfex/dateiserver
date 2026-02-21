@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>DateiServer</title>
+
+<link rel="icon" type="image/png" sizes="32x32" href="favicon.png">
+<link rel="apple-touch-icon" sizes="180x180" href="favicon.png">
+
+<style>
+:root {
+  --bg: #e6e1d3;
+  --panel: #f6f3ea;
+  --card: #f4efe2;
+  --border: #cbbf9f;
+  --accent: #9c7b38;
+  --accent-hover: #b99247;
+  --text: #2f2a1f;
+  --muted: #7b7160;
+  --surface: #efe8da;
+  --modal-btn: #9c7b38;
+  --modal-btn-hover: #b99247;
+  --modal-text: #000;
+}
+
+html, body {
+  height:100%;
+  margin:0;
+  background: var(--bg) url("background_start.png") no-repeat center center;
+  background-size: cover;
+  font-family: "Georgia", "Times New Roman", serif;
+  color: var(--text);
+}
+
+body {
+  display:flex;
+  align-items:flex-start;
+  justify-content:center;
+  padding:3rem 1rem;
+}
+
+.card {
+  width:100%;
+  max-width:880px;
+  background: var(--card);
+  border:2px solid var(--border);
+  border-radius:12px;
+  box-shadow:0 6px 18px rgba(66,50,20,0.2);
+  padding:2rem 2.2rem;
+  position:relative;
+}
+
+.card::before {
+  content:"";
+  position:absolute;
+  inset:0;
+  border-radius:12px;
+  pointer-events:none;
+  box-shadow:inset 0 0 20px rgba(60,45,25,0.2);
+}
+
+h2 {
+  margin:0 0 1.2rem;
+  font-size:1.7rem;
+  color: var(--accent);
+  text-align:center;
+  font-weight:600;
+  letter-spacing:0.03em;
+  border-bottom:1px solid var(--border);
+  padding-bottom:0.5rem;
+}
+.small {color: var(--muted); font-size:0.95rem;}
+
+input, button, select {
+  font-family:inherit;
+  border-radius:6px;
+  border:1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  padding:0.5rem 0.8rem;
+}
+input:focus, select:focus {outline:none; border-color: var(--accent);}
+button {
+  background: var(--accent);
+  color:#fff;
+  border:none;
+  font-weight:600;
+  padding:0.7rem 1.5rem;
+  cursor:pointer;
+  transition: background 0.25s ease;
+  font-size:1rem;
+  border-radius:8px;
+}
+button:hover {background: var(--accent-hover);}
+
+.file {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  background: var(--surface);
+  border:1px solid var(--border);
+  border-radius:8px;
+  padding:0.7rem 1rem;
+  margin:0.6rem 0;
+  transition:background 0.2s ease;
+}
+.file:hover {background:#f8f5ed;}
+.file .meta b {font-weight:600; color: var(--text);}
+.actions {display:flex; gap:0.5rem; flex-wrap:wrap;}
+.actions button {min-width:90px;}
+
+#previewModal, #tokenModal, #errorModal, #confirmModal {display:none; position:fixed; inset:0; z-index:9999; background: rgba(70,55,30,0.65); align-items:center; justify-content:center; padding:1rem;}
+#previewModal.show, #tokenModal.show, #errorModal.show, #confirmModal.show {display:flex; animation: fadeIn 0.3s ease;}
+
+#previewModalContent, #tokenModalContent, #errorModalContent, #confirmModalContent {background: var(--panel); border:1px solid var(--border); border-radius:10px; padding:1.8rem; max-width:500px; width:100%; position:relative; box-shadow:0 8px 40px rgba(70,55,30,0.6); text-align:center; max-height:90vh; overflow-y:auto;}
+#previewModalClose, #tokenModalClose, #errorModalClose, #confirmModalClose {position:absolute; right:16px; top:16px; width:36px; height:36px; font-size:22px; background: var(--accent); color:#fff; border-radius:50%; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; transition: transform 0.2s ease, background 0.2s ease;}
+#previewModalClose:hover, #tokenModalClose:hover, #errorModalClose:hover, #confirmModalClose:hover {background: var(--accent-hover); transform: scale(1.1);}
+
+#tokenModalContent input {width:100%; margin:1rem 0; padding:0.6rem; border:1px solid var(--border); border-radius:6px; font-size:1rem;}
+#tokenModalContent .modal-buttons {display:flex; justify-content:space-between; gap:1rem;}
+#tokenModalContent .modal-buttons button {flex:1; background: var(--modal-btn);}
+#tokenModalContent .modal-buttons button:hover {background: var(--modal-btn-hover);}
+#tokenModalContent .modal-text {color: var(--modal-text); font-weight:bold; font-size:1rem;}
+
+.spotify-player {background: var(--surface); border:1px solid var(--border); border-radius:10px; padding:1rem; display:flex; flex-direction:column; gap:1rem;}
+.sp-top {display:flex; gap:1rem; align-items:center;}
+.sp-art {width:72px; height:72px; border-radius:6px; background: url('mp3player.png') no-repeat center center; background-size:cover; border:1px solid var(--border);}
+.sp-meta .title {font-weight:600; font-size:1rem; color: var(--text);}
+.sp-meta .sub {color: var(--muted); font-size:0.9rem;}
+.sp-controls {display:flex; justify-content:center; gap:0.8rem;}
+.sp-btn {background:#fff8; border:1px solid var(--border); color: var(--text); font-size:18px; width:42px; height:42px; display:flex; align-items:center; justify-content:center; border-radius:50%; cursor:pointer;}
+.sp-btn.play {background: var(--accent); color:#fff; border:none;}
+.sp-progress {display:flex; align-items:center; gap:10px; user-select:none;}
+.progress-track {flex:1; height:8px; background: rgba(0,0,0,0.1); border-radius:10px; position:relative; cursor:pointer;}
+.progress-fill {height:100%; width:0%; background: var(--accent); border-radius:10px; transition: width 0.05s linear;}
+.sp-bottom {display:flex; justify-content:space-between; align-items:center;}
+#previewModalContent video, #previewModalContent img {width:100%; height:auto; max-height:80vh; display:block; margin:auto;}
+#previewModalContent iframe {width:100%; height:80vh; border:none;}
+
+.spinner {border: 4px solid rgba(0,0,0,0.1); border-left: 4px solid var(--accent); border-radius: 50%; width: 40px; height: 40px; margin: 1rem auto; animation: spin 1s linear infinite;}
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+.image-nav {display: flex; justify-content: center; gap: 4rem; margin-top: 1rem;}
+.image-nav button {font-size: 2rem; width: 60px; height: 60px; border-radius: 50%; border: none; background: var(--accent); color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center;}
+.image-nav button:disabled {opacity: 0.3; cursor: default;}
+</style>
+</head>
+<body>
+<div class="card">
+<h2>🗂️ DATEISERVER</h2>
+<div id="login">
+  <button id="loginBtn">Anmelden</button>
+  <button id="createTokenBtn">Lizenzschlüssel erstellen</button>
+  <button id="messageBtn">Mitteilungen ans Team</button>
+</div>
+<div id="app" style="display:none; margin-top:12px;">
+  <p id="connectionStatus" class="small">Nicht verbunden</p>
+  <button id="refreshBtn">Aktualisieren</button>
+  <button id="logoutBtn">Abmelden</button>
+  <div id="fileList" style="margin-top:1rem"></div>
+</div>
+</div>
+
+<div id="previewModal" aria-hidden="true">
+  <div id="previewModalContent" role="dialog" aria-modal="true"></div>
+  <button id="previewModalClose">✖</button>
+</div>
+
+<div id="tokenModal" aria-hidden="true">
+  <div id="tokenModalContent" role="dialog" aria-modal="true">
+    <h3>Dropbox Lizenzschlüssel eingeben</h3>
+    <input type="text" id="tokenInput" placeholder="Lizenzschlüssel hier einfügen"/>
+    <div class="modal-buttons">
+      <button id="tokenCancelBtn">Abbrechen</button>
+      <button id="tokenSubmitBtn">Anmelden</button>
+    </div>
+    <button id="tokenModalClose">✖</button>
+  </div>
+</div>
+
+<div id="errorModal" aria-hidden="true">
+  <div id="errorModalContent" role="dialog" aria-modal="true">
+    <h3 style="font-weight:bold; font-size:1.5rem; margin-bottom:1rem; color:var(--accent);">Verbindung Fehlgeschlagen</h3>
+    <p id="errorMessage" style="font-size:1rem; color:var(--text);"></p>
+    <button id="errorModalClose">✖</button>
+  </div>
+</div>
+
+<div id="confirmModal" aria-hidden="true">
+  <div id="confirmModalContent" role="dialog" aria-modal="true">
+    <p class="modal-text" id="confirmModalText"></p>
+    <div class="modal-buttons">
+      <button id="confirmCancelBtn">Abbrechen</button>
+      <button id="confirmOkBtn">Weiterleiten</button>
+    </div>
+    <button id="confirmModalClose">✖</button>
+  </div>
+</div>
+
+<div id="versionLabel" style="position: fixed; bottom: 10px; right: 10px; font-weight: bold; font-size: 0.9rem; color: var(--accent); z-index: 99999;">VERSION 1.0.5</div>
+
+<script>
+let DROPBOX_TOKEN = '';
+const DROPBOX_FOLDER_PATH = '';
+let currentCustomAudio = null;
+let imageFiles = [];
+let currentImageIndex = 0;
+
+const loginBtn = document.getElementById('loginBtn');
+const createTokenBtn = document.getElementById('createTokenBtn');
+const messageBtn = document.getElementById('messageBtn');
+const tokenModal = document.getElementById('tokenModal');
+const tokenInput = document.getElementById('tokenInput');
+const tokenSubmitBtn = document.getElementById('tokenSubmitBtn');
+const tokenCancelBtn = document.getElementById('tokenCancelBtn');
+const tokenModalClose = document.getElementById('tokenModalClose');
+const previewModal = document.getElementById('previewModal');
+const previewModalContent = document.getElementById('previewModalContent');
+const previewModalCloseBtn = document.getElementById('previewModalClose');
+const errorModal = document.getElementById('errorModal');
+const errorMessageEl = document.getElementById('errorMessage');
+const errorModalClose = document.getElementById('errorModalClose');
+const confirmModal = document.getElementById('confirmModal');
+const confirmModalText = document.getElementById('confirmModalText');
+const confirmModalClose = document.getElementById('confirmModalClose');
+const confirmCancelBtn = document.getElementById('confirmCancelBtn');
+const confirmOkBtn = document.getElementById('confirmOkBtn');
+
+loginBtn.onclick = openTokenModal;
+tokenModalClose.onclick = closeTokenModal;
+tokenCancelBtn.onclick = closeTokenModal;
+previewModalCloseBtn.onclick = closePreview;
+errorModalClose.onclick = closeErrorModal;
+confirmModalClose.onclick = closeConfirmModal;
+confirmCancelBtn.onclick = closeConfirmModal;
+
+createTokenBtn.onclick = ()=>{openConfirmModal("Möchten Sie zu Dropbox weitergeleitet werden?", "https://www.dropbox.com/developers/apps?_tk=pilot_lp&_ad=topbar4&_camp=myapps");};
+messageBtn.onclick = ()=>{openConfirmModal("Möchten Sie unsere Nachrichten-Seite öffnen?", "https://messaging.webnode.page/");};
+
+function openTokenModal(){ tokenInput.value=''; tokenModal.classList.add('show'); tokenModal.setAttribute('aria-hidden','false'); }
+function closeTokenModal(){ tokenModal.classList.remove('show'); tokenModal.setAttribute('aria-hidden','true'); }
+
+function openPreview(){ previewModal.classList.add('show'); previewModal.setAttribute('aria-hidden','false'); }
+function closePreview(){ 
+    if(currentCustomAudio){ try{ currentCustomAudio.pause(); currentCustomAudio.currentTime=0; currentCustomAudio.removeAttribute('src'); currentCustomAudio.load(); currentCustomAudio=null; }catch(e){} }
+    previewModal.classList.remove('show'); previewModal.setAttribute('aria-hidden','true');
+    setTimeout(()=> previewModalContent.innerHTML='',320);
+}
+
+function openErrorModal(msg){ errorMessageEl.textContent=msg; errorModal.classList.add('show'); errorModal.setAttribute('aria-hidden','false'); }
+function closeErrorModal(){ errorModal.classList.remove('show'); errorModal.setAttribute('aria-hidden','true'); errorMessageEl.textContent=''; document.getElementById('app').style.display='none'; document.getElementById('login').style.display='block'; }
+
+function openConfirmModal(msg, url){ confirmModalText.textContent=msg; confirmModal.classList.add('show'); confirmModal.setAttribute('aria-hidden','false'); confirmOkBtn.onclick = ()=>{ window.open(url,'_blank'); closeConfirmModal(); }; }
+function closeConfirmModal(){ confirmModal.classList.remove('show'); confirmModal.setAttribute('aria-hidden','true'); }
+
+tokenSubmitBtn.onclick = async ()=>{
+    const token = tokenInput.value.trim();
+    if(!token) return;
+    DROPBOX_TOKEN = token;
+    closeTokenModal();
+    document.getElementById('login').style.display='none';
+    document.getElementById('app').style.display='block';
+    document.getElementById('refreshBtn').onclick = ()=>listFiles();
+    document.getElementById('logoutBtn').onclick = ()=>{
+        DROPBOX_TOKEN=''; document.getElementById('app').style.display='none'; document.getElementById('login').style.display='block';
+    };
+    await listFiles();
+};
+
+// --- MP3 Player ---
+function createSpotifyAudioPlayer(url, filename){
+    const wrap=document.createElement('div'); wrap.className='spotify-player';
+    const top=document.createElement('div'); top.className='sp-top';
+    const art=document.createElement('div'); art.className='sp-art';
+    // art.textContent entfernt, Hintergrundbild bleibt sichtbar
+    const meta=document.createElement('div'); meta.className='sp-meta';
+    const title=document.createElement('div'); title.className='title'; title.textContent=filename;
+    const sub=document.createElement('div'); sub.className='sub'; sub.textContent='Audio';
+    meta.appendChild(title); meta.appendChild(sub); top.appendChild(art); top.appendChild(meta); wrap.appendChild(top);
+
+    const audio=document.createElement('audio'); audio.preload='metadata'; audio.src=url; currentCustomAudio=audio;
+
+    const controls=document.createElement('div'); controls.className='sp-controls';
+    const btnPrev=document.createElement('button'); btnPrev.className='sp-btn'; btnPrev.innerHTML='⟲';
+    btnPrev.onclick = ()=>{ audio.currentTime=Math.max(0,audio.currentTime-10); };
+    const btnPlay=document.createElement('button'); btnPlay.className='sp-btn play'; btnPlay.innerHTML='▶';
+    btnPlay.onclick = ()=>{ if(audio.paused){ audio.play().catch(()=>{}); btnPlay.innerHTML='⏸'; } else { audio.pause(); btnPlay.innerHTML='▶'; } };
+    const btnNext=document.createElement('button'); btnNext.className='sp-btn'; btnNext.innerHTML='⟳';
+    btnNext.onclick = ()=>{ audio.currentTime=Math.min(audio.duration,audio.currentTime+10); };
+    controls.appendChild(btnPrev); controls.appendChild(btnPlay); controls.appendChild(btnNext); wrap.appendChild(controls);
+
+    const progressRow=document.createElement('div'); progressRow.className='sp-progress';
+    const timeLeft=document.createElement('div'); timeLeft.className='time-left'; timeLeft.textContent='0:00';
+    const progressTrack=document.createElement('div'); progressTrack.className='progress-track';
+    const progressFill=document.createElement('div'); progressFill.className='progress-fill';
+    progressTrack.appendChild(progressFill);
+    const timeRight=document.createElement('div'); timeRight.className='time-right'; timeRight.textContent='0:00';
+    progressRow.appendChild(timeLeft); progressRow.appendChild(progressTrack); progressRow.appendChild(timeRight);
+    wrap.appendChild(progressRow);
+
+    const bottom=document.createElement('div'); bottom.className='sp-bottom';
+    const volumeWrap=document.createElement('div'); volumeWrap.className='volume';
+    const volIcon=document.createElement('div'); volIcon.textContent='🔊';
+    const volRange=document.createElement('input'); volRange.type='range'; volRange.min=0; volRange.max=1; volRange.step=0.01; volRange.value=1;
+    volRange.oninput = ()=>{ audio.volume = Number(volRange.value); };
+    volumeWrap.appendChild(volIcon); volumeWrap.appendChild(volRange); bottom.appendChild(volumeWrap); wrap.appendChild(bottom);
+
+    function fmt(t){ if(!isFinite(t)) return '0:00'; const m=Math.floor(t/60), s=Math.floor(t%60); return `${m}:${String(s).padStart(2,'0')}`; }
+
+    audio.addEventListener('loadedmetadata',()=>{ timeRight.textContent=fmt(audio.duration); });
+
+    let isDragging=false;
+    function updateProgress(pct){ progressFill.style.width=pct*100+'%'; timeLeft.textContent=fmt(audio.currentTime); }
+    progressTrack.addEventListener('mousedown', e=>{ isDragging=true; const rect=progressTrack.getBoundingClientRect(); audio.currentTime=((e.clientX-rect.left)/rect.width)*audio.duration; updateProgress(audio.currentTime/audio.duration); });
+    window.addEventListener('mousemove', e=>{ if(isDragging){ const rect=progressTrack.getBoundingClientRect(); audio.currentTime=Math.min(Math.max(0,((e.clientX-rect.left)/rect.width)*audio.duration), audio.duration); updateProgress(audio.currentTime/audio.duration); }});
+    window.addEventListener('mouseup', e=>{ if(isDragging){ isDragging=false; }});
+    audio.addEventListener('timeupdate', ()=>{ if(!isDragging){ updateProgress(audio.currentTime/audio.duration); }});
+
+    audio.style.display='none'; wrap.appendChild(audio);
+    return {element:wrap,audioEl:audio};
+}
+
+// --- Preview File ---
+async function previewFile(path,name){
+    previewModalContent.innerHTML='<div class="spinner"></div>'; openPreview();
+    try{
+        const res=await fetch('https://api.dropboxapi.com/2/files/get_temporary_link',{
+            method:'POST',
+            headers:{'Authorization':'Bearer '+DROPBOX_TOKEN,'Content-Type':'application/json'},
+            body:JSON.stringify({path})
+        });
+        const data=await res.json();
+        if(!data.link){ previewModalContent.textContent='Fehler beim Abrufen des Links'; return; }
+
+        const ext=name.split('.').pop().toLowerCase();
+        if(['mp3','wav','ogg'].includes(ext)){ 
+            const {element,audioEl}=createSpotifyAudioPlayer(data.link,name);
+            previewModalContent.innerHTML=''; previewModalContent.appendChild(element); currentCustomAudio=audioEl;
+        } else if(['mp4','webm','ogg'].includes(ext)){
+            const video=document.createElement('video'); video.controls=true; video.src=data.link;
+            video.style.display='block'; video.style.width='100%'; video.style.height='auto'; video.style.maxHeight='80vh';
+            video.oncanplay = ()=> previewModalContent.querySelector('.spinner')?.remove();
+            previewModalContent.innerHTML=''; previewModalContent.appendChild(video); video.play().catch(()=>{});
+        } else if(['png','jpg','jpeg','gif','bmp','webp'].includes(ext)){
+            await handleImagePreview(path,data.link,name);
+        } else {
+            previewModalContent.innerHTML='Vorschau nicht verfügbar';
+        }
+    } catch(err){
+        closePreview();
+        openErrorModal('Fehler beim Laden der Vorschau: '+(err.message||err));
+    }
+}
+
+// --- Image Preview (Lazy Loading) ---
+async function handleImagePreview(path,link,name){
+    const folderRes = await fetch('https://api.dropboxapi.com/2/files/list_folder',{
+        method:'POST',
+        headers:{'Authorization':'Bearer '+DROPBOX_TOKEN,'Content-Type':'application/json'},
+        body:JSON.stringify({path: path.substring(0,path.lastIndexOf('/'))})
+    });
+    const folderData = await folderRes.json();
+    imageFiles = folderData.entries.filter(f=>['png','jpg','jpeg','gif','bmp','webp'].includes(f.name.split('.').pop().toLowerCase()));
+    currentImageIndex = imageFiles.findIndex(f=>f.path_lower===path);
+
+    previewModalContent.innerHTML='<div class="spinner"></div>';
+
+    const imgEl = document.createElement('img'); 
+    imgEl.alt = name; 
+    imgEl.src = link; 
+    imgEl.style.display='block'; 
+    imgEl.style.margin='0 auto';
+    imgEl.onload = ()=> previewModalContent.querySelector('.spinner')?.remove();
+    previewModalContent.appendChild(imgEl);
+
+    if(imageFiles.length>=2){
+        const nav = document.createElement('div'); nav.className='image-nav';
+        const leftBtn = document.createElement('button'); leftBtn.textContent='❰';
+        const rightBtn = document.createElement('button'); rightBtn.textContent='❱';
+
+        const updateNav = async ()=>{
+            leftBtn.disabled = currentImageIndex<=0;
+            rightBtn.disabled = currentImageIndex>=imageFiles.length-1;
+
+            if(!imageFiles[currentImageIndex].link){
+                const tmp = await fetch('https://api.dropboxapi.com/2/files/get_temporary_link',{
+                    method:'POST', headers:{'Authorization':'Bearer '+DROPBOX_TOKEN,'Content-Type':'application/json'},
+                    body:JSON.stringify({path:imageFiles[currentImageIndex].path_lower})
+                });
+                const tmpData = await tmp.json(); 
+                imageFiles[currentImageIndex].link = tmpData.link;
+            }
+            imgEl.src = imageFiles[currentImageIndex].link;
+        };
+
+        leftBtn.onclick = async ()=>{ if(currentImageIndex>0){ currentImageIndex--; await updateNav(); }};
+        rightBtn.onclick = async ()=>{ if(currentImageIndex<imageFiles.length-1){ currentImageIndex++; await updateNav(); }};
+
+        nav.appendChild(leftBtn); nav.appendChild(rightBtn);
+        previewModalContent.appendChild(nav);
+    }
+}
+
+// --- List Files ---
+async function listFiles(path = DROPBOX_FOLDER_PATH) {
+    const fileListEl = document.getElementById('fileList');
+    const connectionEl = document.getElementById('connectionStatus');
+    if (!DROPBOX_TOKEN) {
+        connectionEl.textContent = 'Nicht verbunden';
+        fileListEl.textContent = 'Bitte zuerst anmelden.';
+        return;
+    }
+
+    fileListEl.textContent = 'Lade Dateien...';
+    connectionEl.textContent = 'Verbinde...';
+
+    try {
+        const res = await fetch('https://api.dropboxapi.com/2/files/list_folder', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + DROPBOX_TOKEN, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ path })
+        });
+        if (!res.ok) throw new Error('Server nicht gefunden oder ungültiger Lizenzschlüssel');
+        const data = await res.json();
+        if (!data.entries || !data.entries.length) {
+            fileListEl.textContent = 'Dieser Ordner ist Leer.';
+            connectionEl.textContent = 'Verbunden';
+            return;
+        }
+
+        fileListEl.innerHTML = '';
+
+        if (path && path !== '') {
+            const up = document.createElement('div');
+            up.className = 'file';
+            up.innerHTML = '<div><b>⬅️ Zurück</b></div>';
+            up.onclick = () => {
+                const parent = path.substring(0, path.lastIndexOf("/"));
+                listFiles(parent);
+            };
+            fileListEl.appendChild(up);
+        }
+
+        for (const f of data.entries) {
+            const div = document.createElement('div');
+            div.className = 'file';
+
+            if (f['.tag'] === 'folder') {
+                div.innerHTML = `<div class="meta"><b>📁 ${f.name}</b></div>`;
+                div.onclick = () => listFiles(f.path_lower);
+                fileListEl.appendChild(div);
+                continue;
+            }
+            if (f['.tag'] !== 'file') continue;
+
+            const sizeMB = (f.size / 1024 / 1024).toFixed(1);
+            div.innerHTML = `<div class="meta"><b>${f.name}</b><div class="small">${sizeMB} MB</div></div>`;
+
+            const btns = document.createElement('div');
+            btns.className = 'actions';
+
+            const ext = f.name.split('.').pop().toLowerCase();
+            const audioExts = ['mp3','wav','ogg'];
+            const videoExts = ['mp4','webm'];
+            const imageExts = ['png','jpg','jpeg','gif','bmp','webp'];
+
+            if (audioExts.includes(ext)) {
+                const playBtn = document.createElement('button');
+                playBtn.textContent = 'Abspielen';
+                playBtn.onclick = () => previewFile(f.path_lower, f.name);
+                btns.appendChild(playBtn);
+            } else if (videoExts.includes(ext)) {
+                const playBtn = document.createElement('button');
+                playBtn.textContent = 'Abspielen';
+                playBtn.onclick = () => previewFile(f.path_lower, f.name);
+                btns.appendChild(playBtn);
+            } else if (imageExts.includes(ext)) {
+                const viewBtn = document.createElement('button');
+                viewBtn.textContent = 'Ansehen';
+                viewBtn.onclick = () => previewFile(f.path_lower, f.name);
+                btns.appendChild(viewBtn);
+            }
+            // Dokumente oder andere Dateitypen: kein Abspielen
+
+            // Download-Button für alle Dateien
+            const dlBtn = document.createElement('button');
+            dlBtn.textContent = 'Download';
+            dlBtn.onclick = async () => {
+                const lr = await fetch('https://api.dropboxapi.com/2/files/get_temporary_link', {
+                    method: 'POST',
+                    headers: { 'Authorization': 'Bearer ' + DROPBOX_TOKEN, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ path: f.path_lower })
+                });
+                const d = await lr.json();
+                if (d.link) window.open(d.link, '_blank');
+            };
+            btns.appendChild(dlBtn);
+
+            div.appendChild(btns);
+            fileListEl.appendChild(div);
+        }
+
+        connectionEl.textContent = 'Verbunden';
+    } catch (err) {
+        openErrorModal('Fehler: ' + (err.message || err));
+        connectionEl.textContent = 'Verbindungsaufbau Fehlgeschlagen';
+    }
+}
+</script>
+</body>
+</html>
